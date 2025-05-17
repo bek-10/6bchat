@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <title>6-B sinf chat</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(120deg, #f0f0f0, #d0eaff);
+      margin: 0;
+      padding: 0;
+    }
+    h2 {
+      text-align: center;
+      background: #007acc;
+      color: white;
+      margin: 0;
+      padding: 10px;
+    }
+    #login {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 250px;
+    }
+    #chatSection {
+      display: none;
+      padding: 15px;
+    }
+    #chatBox {
+      border: 1px solid #ccc;
+      height: 300px;
+      overflow-y: auto;
+      background: white;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .message {
+      margin: 5px 0;
+    }
+    .message .name {
+      font-weight: bold;
+    }
+    #msgInput {
+      width: 80%;
+      padding: 5px;
+    }
+    #sendBtn {
+      padding: 5px 10px;
+    }
+    #emojiList span {
+      cursor: pointer;
+      font-size: 18px;
+      margin: 3px;
+    }
+    #stickerPanel button {
+      font-size: 18px;
+      margin: 3px;
+      cursor: pointer;
+    }
+    #onlineUsers {
+      font-size: 14px;
+      margin-top: 5px;
+      color: green;
+    }
+    #adminPanel {
+      background: #f9f9f9;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px dashed red;
+    }
+    .deleteBtn {
+      color: red;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    #statsBox {
+      font-size: 14px;
+      background: #eef;
+      padding: 5px;
+      margin-top: 10px;
+    }
+    .status {
+      font-size: 12px;
+      color: gray;
+    }
+    input[type="file"] {
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>6-B sinf chat</h2>
+
+<div id="login">
+  <label>Ismingizni kiriting:</label>
+  <input type="text" id="nameInput">
+  <div id="passwordDiv" style="display:none;">
+    <label>Parol:</label>
+    <input type="password" id="passwordInput">
+  </div>
+  <button onclick="login()">Kirish</button>
+  <p id="error" style="color:red;"></p>
+</div>
+
+<div id="chatSection">
+  <div id="adminPanel" style="display:none;">
+    <h4>👑 Admin paneli</h4>
+    <p>Siz admin sifatida kirdingiz.</p>
+  </div>
+
+  <div id="onlineUsers">🔗 Hozircha hech kim onlayn emas.</div>
+
+  <div id="chatBox"></div>
+
+  <input type="text" id="msgInput" placeholder="Xabar yozing...">
+  <button onclick="sendMessage()">Yuborish</button>
+  <span id="typingStatus" class="status"></span><br>
+
+  <div id="stickerPanel">
+    😊 emojilar: 
+    <button onclick="sendSticker('😊')">😊</button>
+    <button onclick="sendSticker('😁')">😁</button>
+    <button onclick="sendSticker('😂')">😂</button>
+    <button onclick="sendSticker('😍')">😍</button>
+    <button onclick="sendSticker('😎')">😎</button>
+    <button onclick="sendSticker('😢')">😢</button>
+    <button onclick="sendSticker('😡')">😡</button>
+    <button onclick="sendSticker('👍')">👍</button>
+    <button onclick="sendSticker('👎')">👎</button>
+    <button onclick="sendSticker('🙏')">🙏</button>
+    <button onclick="sendSticker('❤️')">❤️</button> 
+    <button onclick="sendSticker('🎉')">🎉</button>
+  </div>
+
+  <div id="stickerPanel">
+    🧸 Stikerlar: 
+    <button onclick="sendSticker('🐱')">🐱</button>
+    <button onclick="sendSticker('🐶')">🐶</button>
+    <button onclick="sendSticker('🚀')">🚀</button>
+    <button onclick="sendSticker('🔥')">🔥</button>
+    <button onclick="sendSticker('🎯')">🎯</button>
+  </div>
+
+  <input type="file" id="imageInput" accept="image/*">
+  <div id="statsBox">📊 Statistikalar ko‘rsatiladi...</div>
+</div>
+
+<audio id="notifSound" src="https://www.soundjay.com/button/sounds/button-3.mp3" preload="auto"></audio>
+
+<script>
+const adminUsers = {
+  "Akmal": "1007",
+  "Abdurahim": "904trek",
+  "Abrorbek": "abror_soul_bek"
+};
+
+const normalUsers = ["Azizbek", "Umarbek", "Abdurahmon", "Sherzodbek", "Saidalixon", "Mexriddin", "Ortiqjon", "Dostonbek", "Husanboy", "Javharbek", "Humoyun", "Muhiddin", "Artur", "Mirjaxon", "Golibjon", "Oybek", "Hajarbibi", "Bonu", "Sabina", "Charos"];
+
+let userName = '';
+let isAdmin = false;
+let messages = [];
+let typingTimeout;
+let onlineUsers = {};
+
+function login() {
+  const name = document.getElementById('nameInput').value.trim();
+  const passDiv = document.getElementById('passwordDiv');
+  const passInput = document.getElementById('passwordInput');
+  const error = document.getElementById('error');
+
+  if (adminUsers[name]) {
+    passDiv.style.display = 'block';
+    const password = passInput.value;
+    if (!password) {
+      error.textContent = "Iltimos, parolni kiriting!";
+      return;
+    }
+    if (adminUsers[name] === password) {
+      userName = name;
+      isAdmin = true;
+      showChat();
+    } else {
+      error.textContent = "Noto‘g‘ri parol!";
+    }
+  } else if (normalUsers.includes(name)) {
+    userName = name;
+    isAdmin = false;
+    showChat();
+  } else {
+    error.textContent = "Ruxsat berilmagan foydalanuvchi!";
+  }
+}
+
+function showChat() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('chatSection').style.display = 'block';
+  if (isAdmin) document.getElementById('adminPanel').style.display = 'block';
+  loadMessages();
+  updateStats();
+  setInterval(updateOnlineList, 2000);
+  window.addEventListener("beforeunload", () => {
+    onlineUsers[userName] = { lastSeen: new Date().toLocaleTimeString(), online: false };
+    localStorage.setItem("onlineUsers", JSON.stringify(onlineUsers));
+  });
+  typingListener();
+}
+
+function sendMessage() {
+  const input = document.getElementById('msgInput');
+  const msg = input.value.trim();
+  if (msg === '') return;
+
+  const message = {
+    sender: userName,
+    text: msg,
+    time: new Date().toLocaleTimeString(),
+    id: Date.now()
+  };
+
+  messages.push(message);
+  localStorage.setItem("messages", JSON.stringify(messages));
+  document.getElementById('notifSound').play();
+  input.value = '';
+  displayMessages();
+  updateStats();
+}
+
+function sendSticker(sticker) {
+  const message = {
+    sender: userName,
+    text: sticker,
+    time: new Date().toLocaleTimeString(),
+    id: Date.now()
+  };
+  messages.push(message);
+  localStorage.setItem("messages", JSON.stringify(messages));
+  displayMessages();
+  updateStats();
+  document.getElementById('notifSound').play();
+}
+
+function displayMessages() {
+  const box = document.getElementById('chatBox');
+  box.innerHTML = '';
+  messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = 'message';
+    div.innerHTML = `<span class="name">${msg.sender}</span>: ${msg.text} <span style="font-size:10px;">(${msg.time})</span>`;
+    if (isAdmin || msg.sender === userName) {
+      const del = document.createElement('span');
+      del.className = 'deleteBtn';
+      del.textContent = '❌';
+      del.onclick = () => {
+        if (confirm("Ishonchingiz komilmi?")) {
+          messages = messages.filter(m => m.id !== msg.id);
+          localStorage.setItem("messages", JSON.stringify(messages));
+          displayMessages();
+          updateStats();
+        }
+      };
+      div.appendChild(del);
+    }
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function loadMessages() {
+  const stored = localStorage.getItem("messages");
+  if (stored) messages = JSON.parse(stored);
+  displayMessages();
+}
+
+document.getElementById('msgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+document.querySelectorAll("#emojiList span").forEach(emoji => {
+  emoji.onclick = () => {
+    const input = document.getElementById('msgInput');
+    input.value += emoji.textContent;
+    input.focus();
+  };
+});
+
+document.getElementById("imageInput").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const message = {
+      sender: userName,
+      text: `<img src="${e.target.result}" width="100">`,
+      time: new Date().toLocaleTimeString(),
+      id: Date.now()
+    };
+    messages.push(message);
+    localStorage.setItem("messages", JSON.stringify(messages));
+    displayMessages();
+    updateStats();
+  };
+  reader.readAsDataURL(file);
+});
+
+function updateStats() {
+  const stats = {};
+  messages.forEach(m => {
+    stats[m.sender] = (stats[m.sender] || 0) + 1;
+  });
+  const entries = Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  const total = messages.length;
+  const topUser = entries.length ? entries[0][0] : "Hech kim";
+  document.getElementById('statsBox').innerHTML = `Jami xabarlar: ${total}<br>Eng ko‘p yozgan: ${topUser}`;
+}
+
+function typingListener() {
+  const input = document.getElementById("msgInput");
+  input.addEventListener("input", () => {
+    document.getElementById("typingStatus").textContent = "Yozmoqda...";
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      document.getElementById("typingStatus").textContent = "";
+    }, 1000);
+  });
+}
+
+function updateOnlineList() {
+  onlineUsers = JSON.parse(localStorage.getItem("onlineUsers") || "{}");
+  onlineUsers[userName] = { online: true, lastSeen: new Date().toLocaleTimeString() };
+  localStorage.setItem("onlineUsers", JSON.stringify(onlineUsers));
+  const list = Object.entries(onlineUsers).filter(([_, v]) => v.online).map(([k]) => k);
+  document.getElementById("onlineUsers").textContent = "🟢 Online: " + list.join(", ");
+}
+</script>
+
+</body>
+</html>
